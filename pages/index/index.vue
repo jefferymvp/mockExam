@@ -4,18 +4,34 @@
 			<text class="title">模拟考试系统</text>
 		</view>
 
-		<view class="form-group">
-			<text class="label">选择题目数量：</text>
-			<input class="input" type="number" v-model="questionCount" placeholder="请输入题目数量" />
+		<view class="section-box">
+			<view class="label-row">
+				<text class="label">选择考试题型：</text>
+			</view>
+			<view class="picker-container">
+				<picker @change="onTypeChange" :value="typeIndex" :range="types" range-key="label">
+					<view class="picker-box">
+						{{ types[typeIndex].label }}
+					</view>
+				</picker>
+			</view>
 		</view>
 
-		<view class="form-group">
-			<text class="label">选择考试题型：</text>
-			<picker @change="onTypeChange" :value="typeIndex" :range="types" range-key="label">
-				<view class="picker-box">
-					{{ types[typeIndex].label }}
-				</view>
-			</picker>
+		<view class="section-box">
+			<view class="label-row">
+				<text class="label">选择题目数量：</text>
+				<text class="count-display">{{ questionCount }} / {{ maxQuestions }}</text>
+			</view>
+			<view class="slider-container">
+				<slider
+					:value="questionCount"
+					@change="onSliderChange"
+					min="1"
+					:max="maxQuestions"
+					show-value
+					block-size="28"
+				/>
+			</view>
 		</view>
 
 		<view class="btn-group">
@@ -25,6 +41,8 @@
 </template>
 
 <script>
+	import questionBank from '@/utils/questionBank.js';
+
 	export default {
 		data() {
 			return {
@@ -35,12 +53,33 @@
 					{ label: '多选题', value: 'multi' },
 					{ label: '判断题', value: 'judge' }
 				],
-				typeIndex: 0
+				typeIndex: 0,
+				maxQuestions: 15 // Default for 'all'
 			}
 		},
+		onLoad() {
+			this.updateMaxQuestions();
+		},
 		methods: {
+			updateMaxQuestions() {
+				const selectedType = this.types[this.typeIndex].value;
+				this.maxQuestions = questionBank.getTotalCount(selectedType);
+
+				// Adjust current count if it exceeds max
+				if (this.questionCount > this.maxQuestions) {
+					this.questionCount = this.maxQuestions;
+				}
+				// Ensure at least 1
+				if (this.questionCount < 1 && this.maxQuestions > 0) {
+					this.questionCount = 1;
+				}
+			},
 			onTypeChange(e) {
 				this.typeIndex = e.detail.value;
+				this.updateMaxQuestions();
+			},
+			onSliderChange(e) {
+				this.questionCount = e.detail.value;
 			},
 			startExam() {
 				if (!this.questionCount || this.questionCount <= 0) {
@@ -79,45 +118,53 @@
 		color: #333;
 	}
 
-	.form-group {
+	.section-box {
 		width: 100%;
-		margin-bottom: 30px;
+		margin-bottom: 40px;
 		display: flex;
 		flex-direction: column;
-		align-items: flex-start;
+		align-items: center;
+	}
+
+	.label-row {
+		width: 80%;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 15px;
 	}
 
 	.label {
-		margin-bottom: 10px;
 		font-size: 16px;
 		color: #666;
 	}
 
-	.input {
-		width: 100%;
-		height: 40px;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		padding: 0 10px;
+	.count-display {
 		font-size: 16px;
+		color: #007aff;
+		font-weight: bold;
+	}
+
+	.picker-container, .slider-container {
+		width: 80%;
 	}
 
 	.picker-box {
 		width: 100%;
-		height: 40px;
+		height: 45px;
 		border: 1px solid #ccc;
 		border-radius: 4px;
-		padding: 0 10px;
+		padding: 0 15px;
 		font-size: 16px;
-		line-height: 40px;
+		line-height: 43px; /* vertically center text, accounting for border */
 		color: #333;
+		background-color: #fff;
+		text-align: center;
 	}
 
 	.btn-group {
-		width: 100%;
-		display: flex;
-		flex-direction: column;
-		gap: 15px;
+		width: 80%;
+		margin-top: 20px;
 	}
 
 	.btn {
@@ -132,9 +179,5 @@
 	.btn-primary {
 		background-color: #007aff;
 		color: #fff;
-	}
-
-	button {
-		margin-bottom: 15px;
 	}
 </style>

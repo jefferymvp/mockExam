@@ -35,7 +35,7 @@
 				<radio-group v-if="currentQuestion.type === 'single' || currentQuestion.type === 'judge'" @change="onRadioChange">
 					<label class="option-item" v-for="(item, index) in currentQuestion.options" :key="index">
 						<view class="option-row">
-							<radio :value="item.value" :checked="selectedAnswer === item.value" :disabled="hasAnswered" />
+							<radio :value="getOptionValue(item)" :checked="selectedAnswer === getOptionValue(item)" :disabled="hasAnswered" />
 							<text class="option-text">{{ item.label }}. {{ getLabelText(item) }}</text>
 						</view>
 					</label>
@@ -45,7 +45,7 @@
 				<checkbox-group v-if="currentQuestion.type === 'multi'" @change="onCheckboxChange">
 					<label class="option-item" v-for="(item, index) in currentQuestion.options" :key="index">
 						<view class="option-row">
-							<checkbox :value="item.value" :checked="selectedAnswer.includes(item.value)" :disabled="hasAnswered" />
+							<checkbox :value="getOptionValue(item)" :checked="selectedAnswer.includes(getOptionValue(item))" :disabled="hasAnswered" />
 							<text class="option-text">{{ item.label }}. {{ getLabelText(item) }}</text>
 						</view>
 					</label>
@@ -115,6 +115,13 @@
 			this.resetSelection();
 		},
 		methods: {
+			getOptionValue(item) {
+				if (this.currentQuestion.type === 'judge') {
+					return item.value;
+				}
+				// For Single/Multi, we track answer by 'A', 'B', etc. which is stored in label
+				return item.label;
+			},
 			resetSelection() {
 				if (this.currentQuestion.type === 'multi') {
 					this.selectedAnswer = [];

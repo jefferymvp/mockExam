@@ -192,5 +192,11 @@ export default {
 
         // Slice
         return shuffled.slice(0, count);
+    },
+    getTotalCount: function(type) {
+        if (type === 'single') return singleChoice.length;
+        if (type === 'multi') return multiChoice.length;
+        if (type === 'judge') return judgeQuestions.length;
+        return singleChoice.length + multiChoice.length + judgeQuestions.length;
     }
 }
