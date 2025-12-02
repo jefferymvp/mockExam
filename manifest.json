@@ -1,0 +1,8 @@
+{
+	"name": "MockExamApp",
+	"appid": "",
+	"description": "A simple mock exam application",
+	"versionName": "1.0.0",
+	"versionCode": "100",
+	"transformPx": false
+}
