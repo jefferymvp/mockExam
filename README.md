@@ -1,1 +1,1 @@
-"# mockExam" 
+# mockExam
