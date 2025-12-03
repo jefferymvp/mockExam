@@ -58,3 +58,14 @@
 2.  进入注册页面创建一个新用户。
 3.  如果在 Supabase 的 `auth.users` 和 `public.profiles` 表中都能看到该用户数据，说明触发器配置成功。
 4.  在应用首页，您应该能看到"开放测试组"，点击加入即可开始测试。
+
+## 5. 配置管理员 (Optional)
+
+如果您希望某个用户拥有管理员权限，可以在 Supabase Dashboard 中手动修改其角色：
+
+1.  在 Supabase Dashboard 左侧菜单栏点击 **Table Editor**。
+2.  找到并点击 `public.profiles` 表。
+3.  找到您想要设置为管理员的用户对应的行。
+4.  编辑该行中的 `role` 字段，将其值从 `user` 修改为 `admin`。
+5.  保存更改。
+6.  该用户再次登录应用后，将拥有访问管理员页面的权限。
