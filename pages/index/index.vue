@@ -1,41 +1,50 @@
 <template>
 	<view class="container">
-		<view class="header">
+		<view class="header-card">
 			<text class="title">模拟考试系统</text>
+			<text class="subtitle">随时随地，轻松练习</text>
 		</view>
 
-		<view class="section-box">
-			<view class="label-row">
-				<text class="label">选择考试题型：</text>
+		<view class="card">
+			<view class="section-box">
+				<view class="label-row">
+					<text class="label">选择考试题型</text>
+				</view>
+				<view class="picker-container">
+					<picker @change="onTypeChange" :value="typeIndex" :range="types" range-key="label">
+						<view class="picker-box">
+							<text class="picker-text">{{ types[typeIndex].label }}</text>
+							<text class="picker-arrow">▼</text>
+						</view>
+					</picker>
+				</view>
 			</view>
-			<view class="picker-container">
-				<picker @change="onTypeChange" :value="typeIndex" :range="types" range-key="label">
-					<view class="picker-box">
-						{{ types[typeIndex].label }}
-					</view>
-				</picker>
-			</view>
-		</view>
 
-		<view class="section-box">
-			<view class="label-row">
-				<text class="label">选择题目数量：</text>
-				<text class="count-display">{{ questionCount }} / {{ maxQuestions }}</text>
-			</view>
-			<view class="slider-container">
-				<slider
-					:value="questionCount"
-					@change="onSliderChange"
-					min="1"
-					:max="maxQuestions"
-					show-value
-					block-size="28"
-				/>
+			<view class="divider"></view>
+
+			<view class="section-box">
+				<view class="label-row">
+					<text class="label">选择题目数量</text>
+					<text class="count-display">{{ questionCount }} / {{ maxQuestions }}</text>
+				</view>
+				<view class="slider-container">
+					<slider
+						:value="questionCount"
+						@change="onSliderChange"
+						min="1"
+						:max="maxQuestions"
+						activeColor="#007aff"
+						backgroundColor="#e5e5e5"
+						block-color="#007aff"
+						block-size="20"
+						show-value
+					/>
+				</view>
 			</view>
 		</view>
 
 		<view class="btn-group">
-			<button class="btn btn-primary" @click="startExam">开始考试</button>
+			<button class="btn btn-primary" hover-class="btn-hover" @click="startExam">开始考试</button>
 		</view>
 	</view>
 </template>
@@ -101,33 +110,60 @@
 </script>
 
 <style>
+	page {
+		background-color: #f5f7fa;
+	}
+
 	.container {
-		padding: 30px;
+		padding: 20px;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
+		min-height: 100vh;
 	}
 
-	.header {
-		margin-bottom: 40px;
+	.header-card {
+		width: 100%;
+		padding: 40px 20px;
+		background: linear-gradient(135deg, #007aff, #00b4d8);
+		border-radius: 16px;
+		margin-bottom: 30px;
+		box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.title {
-		font-size: 24px;
+		font-size: 28px;
 		font-weight: bold;
-		color: #333;
+		color: #fff;
+		margin-bottom: 10px;
+		letter-spacing: 1px;
+	}
+
+	.subtitle {
+		font-size: 14px;
+		color: rgba(255, 255, 255, 0.9);
+	}
+
+	.card {
+		width: 100%;
+		background-color: #fff;
+		border-radius: 16px;
+		padding: 30px 20px;
+		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+		margin-bottom: 30px;
 	}
 
 	.section-box {
 		width: 100%;
-		margin-bottom: 40px;
 		display: flex;
 		flex-direction: column;
-		align-items: center;
 	}
 
 	.label-row {
-		width: 80%;
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
@@ -136,48 +172,80 @@
 
 	.label {
 		font-size: 16px;
-		color: #666;
+		font-weight: 600;
+		color: #333;
 	}
 
 	.count-display {
 		font-size: 16px;
 		color: #007aff;
 		font-weight: bold;
+		background-color: #eef6ff;
+		padding: 4px 10px;
+		border-radius: 12px;
 	}
 
 	.picker-container, .slider-container {
-		width: 80%;
+		width: 100%;
 	}
 
 	.picker-box {
 		width: 100%;
-		height: 45px;
-		border: 1px solid #ccc;
-		border-radius: 4px;
+		height: 50px;
+		background-color: #f8f9fb;
+		border-radius: 8px;
 		padding: 0 15px;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		border: 1px solid #eee;
+		transition: all 0.3s;
+	}
+
+	.picker-box:active {
+		background-color: #f0f2f5;
+	}
+
+	.picker-text {
 		font-size: 16px;
-		line-height: 43px; /* vertically center text, accounting for border */
 		color: #333;
-		background-color: #fff;
-		text-align: center;
+	}
+
+	.picker-arrow {
+		font-size: 12px;
+		color: #999;
+	}
+
+	.divider {
+		height: 1px;
+		background-color: #f0f0f0;
+		margin: 25px 0;
+		width: 100%;
 	}
 
 	.btn-group {
-		width: 80%;
-		margin-top: 20px;
+		width: 100%;
 	}
 
 	.btn {
 		width: 100%;
-		height: 45px;
-		line-height: 45px;
+		height: 54px;
+		line-height: 54px;
 		text-align: center;
-		border-radius: 5px;
-		font-size: 16px;
+		border-radius: 27px;
+		font-size: 18px;
+		font-weight: 600;
+		box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2);
+		transition: all 0.3s;
 	}
 
 	.btn-primary {
-		background-color: #007aff;
+		background: linear-gradient(to right, #007aff, #0062cc);
 		color: #fff;
+	}
+
+	.btn-hover {
+		opacity: 0.9;
+		transform: scale(0.98);
 	}
 </style>
