@@ -7,6 +7,24 @@
 			}
 		},
 		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationBarTitleText": "用户登录"
+			}
+		},
+		{
+			"path": "pages/register/register",
+			"style": {
+				"navigationBarTitleText": "用户注册"
+			}
+		},
+		{
+			"path": "pages/admin/admin",
+			"style": {
+				"navigationBarTitleText": "管理控制台"
+			}
+		},
+		{
 			"path": "pages/exam/exam",
 			"style": {
 				"navigationBarTitleText": "正在考试"
