@@ -103,7 +103,7 @@
 </template>
 
 <script>
-	import questionBank from '@/utils/questionBank.js';
+	import { supabase } from '@/utils/supabase.js'
 
 	export default {
 		data() {
@@ -151,18 +151,49 @@
 				return ((this.currentIndex + 1) / this.totalQuestions) * 100;
 			}
 		},
-		onLoad(options) {
-			const type = options.type || 'single';
+		async onLoad(options) {
+			const type = options.type || 'all';
 			const count = parseInt(options.count) || 5;
-            const bankKey = options.bank || 'bank1'; // Default to bank1 if missing
+            const bankId = options.bankId; 
 
-			this.questions = questionBank.getQuestions(bankKey, type, count);
-			this.loading = false;
+            if (!bankId) {
+                uni.showToast({ title: '题库参数错误', icon: 'none' });
+                setTimeout(() => uni.navigateBack(), 1500);
+                return;
+            }
 
-			// Initialize first answer container
-			this.resetSelection();
+            await this.fetchQuestions(bankId, type, count);
 		},
 		methods: {
+            async fetchQuestions(bankId, type, count) {
+                this.loading = true;
+                
+                let query = supabase.from('questions').select('*').eq('bank_id', bankId);
+                if (type !== 'all') {
+                    query = query.eq('type', type);
+                }
+                
+                // Fetch all matching candidates to shuffle
+                const { data, error } = await query;
+                
+                if (error) {
+                    uni.showToast({ title: '加载题目失败', icon: 'none' });
+                    this.loading = false;
+                    return;
+                }
+                
+                let pool = data || [];
+                
+                // Shuffle
+                let shuffled = [...pool].sort(() => 0.5 - Math.random());
+                
+                // Slice
+                this.questions = shuffled.slice(0, count);
+                
+                this.loading = false;
+                this.resetSelection();
+            },
+            
 			getOptionValue(item) {
 				if (this.currentQuestion.type === 'judge') {
 					return item.value;
@@ -235,8 +266,11 @@
 			        return ans.join(', ');
 			    }
 			    if (this.currentQuestion.type === 'judge') {
-			        const opt = this.currentQuestion.options.find(o => o.value === ans);
-			        return opt ? opt.label : ans;
+			        // Attempt to find label from options
+			        if (this.currentQuestion.options) {
+                         const opt = this.currentQuestion.options.find(o => o.value === ans);
+                         return opt ? opt.label : ans;
+                    }
 			    }
 			    return ans;
 			}
