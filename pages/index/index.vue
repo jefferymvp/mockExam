@@ -6,6 +6,23 @@
 		</view>
 
 		<view class="card">
+            <!-- Question Bank Selection -->
+			<view class="section-box">
+				<view class="label-row">
+					<text class="label">选择题库</text>
+				</view>
+				<view class="picker-container">
+					<picker @change="onBankChange" :value="bankIndex" :range="banks" range-key="name">
+						<view class="picker-box">
+							<text class="picker-text">{{ banks[bankIndex] ? banks[bankIndex].name : '加载中...' }}</text>
+							<text class="picker-arrow">▼</text>
+						</view>
+					</picker>
+				</view>
+			</view>
+
+			<view class="divider"></view>
+
 			<view class="section-box">
 				<view class="label-row">
 					<text class="label">选择考试题型</text>
@@ -56,6 +73,8 @@
 		data() {
 			return {
 				questionCount: 5,
+                banks: [],
+                bankIndex: 0,
 				types: [
 					{ label: '所有题型', value: 'all' },
 					{ label: '单选题', value: 'single' },
@@ -67,12 +86,23 @@
 			}
 		},
 		onLoad() {
+            this.loadBanks();
 			this.updateMaxQuestions();
 		},
 		methods: {
+            loadBanks() {
+                this.banks = questionBank.getBanks();
+                if (this.banks.length > 0) {
+                    this.bankIndex = 0;
+                }
+            },
 			updateMaxQuestions() {
+                // Determine current bank key
+                const currentBankKey = this.banks[this.bankIndex] ? this.banks[this.bankIndex].key : null;
+                if (!currentBankKey) return;
+
 				const selectedType = this.types[this.typeIndex].value;
-				this.maxQuestions = questionBank.getTotalCount(selectedType);
+				this.maxQuestions = questionBank.getTotalCount(currentBankKey, selectedType);
 
 				// Adjust current count if it exceeds max
 				if (this.questionCount > this.maxQuestions) {
@@ -83,6 +113,10 @@
 					this.questionCount = 1;
 				}
 			},
+            onBankChange(e) {
+                this.bankIndex = e.detail.value;
+                this.updateMaxQuestions();
+            },
 			onTypeChange(e) {
 				this.typeIndex = e.detail.value;
 				this.updateMaxQuestions();
@@ -99,10 +133,11 @@
 					return;
 				}
 
+                const selectedBank = this.banks[this.bankIndex].key;
 				const selectedType = this.types[this.typeIndex].value;
 
 				uni.navigateTo({
-					url: `/pages/exam/exam?type=${selectedType}&count=${this.questionCount}`
+					url: `/pages/exam/exam?bank=${selectedBank}&type=${selectedType}&count=${this.questionCount}`
 				});
 			}
 		}

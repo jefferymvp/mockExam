@@ -154,8 +154,9 @@
 		onLoad(options) {
 			const type = options.type || 'single';
 			const count = parseInt(options.count) || 5;
+            const bankKey = options.bank || 'bank1'; // Default to bank1 if missing
 
-			this.questions = questionBank.getQuestions(type, count);
+			this.questions = questionBank.getQuestions(bankKey, type, count);
 			this.loading = false;
 
 			// Initialize first answer container
