@@ -1,6 +1,21 @@
 -- Enable necessary extensions
 create extension if not exists "uuid-ossp";
 
+-- HELPER FUNCTIONS
+-- Function to securely check if the current user is an admin
+-- Used in RLS policies to avoid recursion and enhance security
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1
+    FROM profiles
+    WHERE id = auth.uid()
+    AND role = 'admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- 1. Profiles Table
 -- Managed via Triggers from auth.users
 create table public.profiles (
@@ -8,6 +23,7 @@ create table public.profiles (
   username text,
   avatar_url text,
   role text default 'user' check (role in ('user', 'admin')),
+  is_active boolean default true,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -15,17 +31,29 @@ create table public.profiles (
 alter table public.profiles enable row level security;
 
 -- RLS Policies for Profiles
-create policy "Public profiles are viewable by everyone."
+create policy "Users can see own profile"
   on profiles for select
-  using ( true );
+  using ( auth.uid() = id );
 
-create policy "Users can insert their own profile."
+create policy "Admins can view all profiles"
+  on profiles for select
+  using ( is_admin() );
+
+create policy "Users can insert their own profile"
   on profiles for insert
   with check ( auth.uid() = id );
 
-create policy "Users can update own profile."
+create policy "Users can update own profile"
   on profiles for update
   using ( auth.uid() = id );
+
+create policy "Admins can update any profile"
+  on profiles for update
+  using ( is_admin() );
+
+create policy "Admins can delete any profile"
+  on profiles for delete
+  using ( is_admin() );
 
 -- 2. Organizations Table
 create table public.organizations (
@@ -39,11 +67,11 @@ create table public.organizations (
 alter table public.organizations enable row level security;
 
 -- RLS for Organizations
-create policy "Organizations are viewable by everyone if allow_join is true."
+create policy "Organizations are viewable by everyone if allow_join is true"
   on organizations for select
   using ( allow_join = true );
 
-create policy "Members can view their organizations."
+create policy "Members can view their organizations"
   on organizations for select
   using (
     exists (
@@ -52,6 +80,22 @@ create policy "Members can view their organizations."
       and organization_members.user_id = auth.uid()
     )
   );
+  
+create policy "Admins can view all organizations"
+  on organizations for select
+  using ( is_admin() );
+
+create policy "Admins can insert organizations"
+  on organizations for insert
+  with check ( is_admin() );
+
+create policy "Admins can update organizations"
+  on organizations for update
+  using ( is_admin() );
+
+create policy "Admins can delete organizations"
+  on organizations for delete
+  using ( is_admin() );
 
 -- 3. Organization Members Table
 create table public.organization_members (
@@ -65,11 +109,11 @@ create table public.organization_members (
 
 alter table public.organization_members enable row level security;
 
-create policy "Users can view their own memberships."
+create policy "Users can view their own memberships"
   on organization_members for select
   using ( auth.uid() = user_id );
 
-create policy "Users can join open organizations."
+create policy "Users can join open organizations"
   on organization_members for insert
   with check (
     auth.uid() = user_id 
@@ -80,16 +124,61 @@ create policy "Users can join open organizations."
     )
   );
 
+create policy "Users can leave organizations"
+  on organization_members for delete
+  using ( auth.uid() = user_id );
+
+create policy "Admins can view all memberships"
+  on organization_members for select
+  using ( is_admin() );
+
+create policy "Admins can insert memberships"
+  on organization_members for insert
+  with check ( is_admin() );
+
+create policy "Admins can delete memberships"
+  on organization_members for delete
+  using ( is_admin() );
+
 -- 4. Question Banks Table
 create table public.question_banks (
   id uuid default uuid_generate_v4() primary key,
   name text not null,
   description text,
-  is_public boolean default false, -- Future proofing
+  is_public boolean default false,
+  is_active boolean default true,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
 alter table public.question_banks enable row level security;
+
+-- RLS for Banks
+create policy "Users view banks assigned to their orgs"
+  on question_banks for select
+  using (
+    exists (
+      select 1 from organization_banks ob
+      join organization_members om on ob.organization_id = om.organization_id
+      where ob.bank_id = question_banks.id
+      and om.user_id = auth.uid()
+    )
+  );
+
+create policy "Admins can view all banks"
+  on question_banks for select
+  using ( is_admin() );
+
+create policy "Admins can insert question banks"
+  on question_banks for insert
+  with check ( is_admin() );
+
+create policy "Admins can update question banks"
+  on question_banks for update
+  using ( is_admin() );
+
+create policy "Admins can delete question banks"
+  on question_banks for delete
+  using ( is_admin() );
 
 -- 5. Organization Banks (Many-to-Many Link)
 create table public.organization_banks (
@@ -102,19 +191,6 @@ create table public.organization_banks (
 
 alter table public.organization_banks enable row level security;
 
--- RLS for Banks via Org Link
--- Users can see banks if they belong to an organization that has access to that bank
-create policy "Users view banks assigned to their orgs"
-  on question_banks for select
-  using (
-    exists (
-      select 1 from organization_banks ob
-      join organization_members om on ob.organization_id = om.organization_id
-      where ob.bank_id = question_banks.id
-      and om.user_id = auth.uid()
-    )
-  );
-
 create policy "Users view org-bank links for their orgs"
   on organization_banks for select
   using (
@@ -124,6 +200,10 @@ create policy "Users view org-bank links for their orgs"
       and om.user_id = auth.uid()
     )
   );
+
+create policy "Admins can manage org banks"
+  on organization_banks for all
+  using ( is_admin() );
 
 -- 6. Questions Table
 create table public.questions (
@@ -140,19 +220,13 @@ create table public.questions (
 alter table public.questions enable row level security;
 
 -- RLS for Questions
--- Simplification: If you can see the bank, you can see the questions
 create policy "Users view questions in accessible banks"
   on questions for select
   using (
     exists (
       select 1 from question_banks qb
       where qb.id = questions.bank_id
-      -- Re-use logic from question_banks policy, or simplified:
       and (
-          -- Option A: Public banks
-          -- qb.is_public = true 
-          -- OR 
-          -- Option B: Linked via Org
           exists (
               select 1 from organization_banks ob
               join organization_members om on ob.organization_id = om.organization_id
@@ -163,8 +237,24 @@ create policy "Users view questions in accessible banks"
     )
   );
 
+create policy "Admins can view all questions"
+  on questions for select
+  using ( is_admin() );
 
--- FUNCTIONS & TRIGGERS
+create policy "Admins can insert questions"
+  on questions for insert
+  with check ( is_admin() );
+
+create policy "Admins can update questions"
+  on questions for update
+  using ( is_admin() );
+
+create policy "Admins can delete questions"
+  on questions for delete
+  using ( is_admin() );
+
+
+-- TRIGGERS
 
 -- Handle New User -> Create Profile
 create or replace function public.handle_new_user()
@@ -181,17 +271,9 @@ begin
 end;
 $$ language plpgsql security definer;
 
+-- Ensure trigger exists (idempotent in SQL usually requires drop/create or IF NOT EXISTS logic, 
+-- but for schema file we just define it)
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
-
--- SEED DATA (Optional Demo Data)
--- Note: You must create a user first to link them, or just seed public data.
--- Below creates a demo organization and bank.
-
-insert into organizations (name, allow_join) values ('Demo School', true);
-
-insert into question_banks (name, description) values ('General Knowledge', 'A sample bank for testing.');
-
--- Link them (Need IDs, so usually done via script, but here is a conceptual query)
--- insert into organization_banks (organization_id, bank_id) values ((select id from organizations limit 1), (select id from question_banks limit 1));

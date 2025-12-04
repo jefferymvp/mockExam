@@ -1,2 +1,5 @@
 node_modules/
+unpackage/
 .env
+utils/supabase.js
+待导入题库.xlsx

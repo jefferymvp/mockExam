@@ -1,0 +1,8 @@
+import { createClient } from '@supabase/supabase-js'
+
+// 请将以下占位符替换为您实际的 Supabase URL 和 Anon Key
+// 您可以在 Supabase 控制台的 Settings -> API 中找到这些信息
+const supabaseUrl = 'YOUR_SUPABASE_URL_HERE'
+const supabaseKey = 'YOUR_SUPABASE_ANON_KEY_HERE'
+
+export const supabase = createClient(supabaseUrl, supabaseKey)

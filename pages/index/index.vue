@@ -95,8 +95,13 @@
 				
 				<view class="org-list">
 					<view class="org-item" v-for="org in availableOrgs" :key="org.id" @click="joinOrganization(org)">
-						<text class="org-name">{{ org.name }}</text>
-						<text class="join-icon">加入 →</text>
+                        <view class="org-content">
+						    <text class="org-name">{{ org.name }}</text>
+                        </view>
+                        <view class="org-line"></view>
+                        <view class="org-footer">
+						    <text class="join-btn">加入 →</text>
+                        </view>
 					</view>
 					<view v-if="availableOrgs.length === 0" class="empty-tip">
 						暂无开放加入的组织
@@ -113,11 +118,18 @@
                     <text class="close-btn" @click="showJoinModal = false">×</text>
                 </view>
                 <scroll-view scroll-y class="modal-body">
-                    <view class="org-item" v-for="org in availableOrgs" :key="org.id" @click="joinOrganization(org)">
-						<text class="org-name">{{ org.name }}</text>
-                        <text class="joined-tag" v-if="isMember(org.id)">已加入</text>
-						<text class="join-icon" v-else>加入</text>
-					</view>
+                    <view class="org-list">
+                        <view class="org-item" v-for="org in availableOrgs" :key="org.id" @click="joinOrganization(org)">
+                            <view class="org-content">
+                                <text class="org-name">{{ org.name }}</text>
+                            </view>
+                            <view class="org-line"></view>
+                            <view class="org-footer">
+                                <text class="joined-tag" v-if="isMember(org.id)">已加入</text>
+                                <text class="join-btn" v-else>加入 →</text>
+                            </view>
+                        </view>
+                    </view>
                 </scroll-view>
             </view>
         </view>
@@ -306,8 +318,13 @@
                 const { count } = await query;
                 this.maxQuestions = count || 0;
                 
-                if (this.questionCount > this.maxQuestions) this.questionCount = this.maxQuestions;
-                if (this.questionCount < 1 && this.maxQuestions > 0) this.questionCount = 1;
+                // New Logic: Adjust questionCount based on maxQuestions
+                if (this.maxQuestions > 10) {
+                    this.questionCount = 10;
+                } else {
+                    this.questionCount = this.maxQuestions;
+                }
+                // No need for previous if conditions as new logic covers them
             },
 
             onBankChange(e) {
@@ -380,11 +397,21 @@
     .label-large { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 8px; }
     .desc { font-size: 14px; color: #666; margin-bottom: 20px; }
     
-    .org-list { display: flex; flex-direction: column; gap: 10px; }
-    .org-item { padding: 15px; background: #f9f9f9; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee; }
-    .org-item:active { background: #eee; }
-    .org-name { font-weight: bold; color: #333; }
-    .join-icon { color: #007aff; font-weight: bold; }
+    .org-list { display: flex; flex-direction: column; gap: 15px; }
+    
+    /* Updated Org Item Style */
+    .org-item { padding: 0; background: #fff; border-radius: 10px; display: flex; flex-direction: column; border: 1px solid #eee; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+    .org-item:active { transform: scale(0.99); transition: transform 0.1s; }
+    
+    .org-content { padding: 15px 15px 12px; }
+    .org-name { font-weight: bold; color: #333; font-size: 16px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    
+    .org-line { height: 1px; background: #f5f5f5; width: 100%; }
+    
+    .org-footer { padding: 10px 15px; display: flex; justify-content: flex-end; background: #fafafa; }
+    
+    .join-btn { color: #fff; background: #007aff; font-size: 12px; padding: 4px 12px; border-radius: 14px; font-weight: 500; }
+    .joined-tag { color: #999; font-size: 12px; background: #eee; padding: 4px 12px; border-radius: 14px; }
     
     .org-selector-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; }
     .org-picker-wrapper { flex: 1; margin-right: 15px; }
@@ -402,7 +429,7 @@
     .modal-header { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
     .modal-title { font-size: 18px; font-weight: bold; }
     .close-btn { font-size: 24px; color: #999; padding: 0 10px; }
-    .modal-body { padding: 20px; overflow-y: auto; }
+    .modal-body { padding: 0; overflow-y: auto; } /* Modified */
     
     .joined-tag { color: #999; font-size: 12px; background: #eee; padding: 2px 6px; border-radius: 4px; }
 
