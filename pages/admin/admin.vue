@@ -136,7 +136,7 @@
 
 <script>
 	import { supabase } from '@/utils/supabase.js'
-    import * as XLSX from 'xlsx'
+    import * as XLSX from 'xlsx/dist/xlsx.mini.min.js'
 
 	export default {
 		data() {

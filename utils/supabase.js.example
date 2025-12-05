@@ -1,8 +1,256 @@
-import { createClient } from '@supabase/supabase-js'
-
 // 请将以下占位符替换为您实际的 Supabase URL 和 Anon Key
 // 您可以在 Supabase 控制台的 Settings -> API 中找到这些信息
 const supabaseUrl = 'YOUR_SUPABASE_URL_HERE'
 const supabaseKey = 'YOUR_SUPABASE_ANON_KEY_HERE'
 
-export const supabase = createClient(supabaseUrl, supabaseKey)
+// Key for storing session in local storage
+const SESSION_KEY = 'supabase_session'
+
+class QueryBuilder {
+    constructor(url, headers) {
+        this.url = url
+        this.headers = headers || {}
+        this.method = 'GET'
+        this.queryParams = []
+        this.bodyData = null
+    }
+
+    select(columns = '*', options = {}) {
+        this.method = 'GET'
+        this.queryParams.push(`select=${columns}`)
+        if (options.head) {
+            this.method = 'HEAD'
+        }
+        if (options.count) {
+            this.headers['Prefer'] = `count=${options.count}`
+        }
+        return this
+    }
+
+    insert(data) {
+        this.method = 'POST'
+        this.bodyData = data
+        this.headers['Prefer'] = 'return=representation' // Default to returning data
+        return this
+    }
+
+    update(data) {
+        this.method = 'PATCH'
+        this.bodyData = data
+        this.headers['Prefer'] = 'return=representation'
+        return this
+    }
+    
+    delete() {
+        this.method = 'DELETE'
+        return this
+    }
+
+    eq(column, value) {
+        this.queryParams.push(`${column}=eq.${value}`)
+        return this
+    }
+    
+    // Simple match for equality of multiple fields
+    match(query) {
+        for (const key in query) {
+            this.eq(key, query[key])
+        }
+        return this
+    }
+
+    single() {
+        this.headers['Accept'] = 'application/vnd.pgrst.object+json'
+        return this
+    }
+
+    order(column, options = { ascending: true }) {
+        const direction = options.ascending ? 'asc' : 'desc'
+        this.queryParams.push(`order=${column}.${direction}`)
+        return this
+    }
+
+    limit(count) {
+        this.queryParams.push(`limit=${count}`)
+        return this
+    }
+
+    // Enable 'await' support
+    async then(resolve, reject) {
+        try {
+            const result = await this.exec()
+            resolve(result)
+        } catch (error) {
+            reject(error)
+        }
+    }
+
+    async exec() {
+        let fullUrl = this.url
+        if (this.queryParams.length > 0) {
+            fullUrl += '?' + this.queryParams.join('&')
+        }
+
+        // Get Token
+        const session = uni.getStorageSync(SESSION_KEY)
+        if (session && session.access_token) {
+            this.headers['Authorization'] = `Bearer ${session.access_token}`
+        }
+
+        // Default API Key header
+        this.headers['apikey'] = supabaseKey
+        
+        // Content Type
+        if (this.method !== 'GET' && this.method !== 'HEAD') {
+             this.headers['Content-Type'] = 'application/json'
+        }
+
+        return new Promise((resolve) => {
+            uni.request({
+                url: fullUrl,
+                method: this.method,
+                header: this.headers,
+                data: this.bodyData,
+                success: (res) => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        // Handle count property for HEAD/Select with count
+                        let count = null
+                        // Content-Range: 0-4/5
+                        const contentRange = res.header['Content-Range'] || res.header['content-range']
+                        if (contentRange) {
+                            const parts = contentRange.split('/')
+                            if (parts.length > 1) {
+                                count = parseInt(parts[1])
+                            }
+                        }
+                        
+                        resolve({ data: res.data, error: null, count: count })
+                    } else {
+                        resolve({ data: null, error: { message: res.data?.message || res.errMsg || 'Unknown Error', code: res.statusCode } })
+                    }
+                },
+                fail: (err) => {
+                    resolve({ data: null, error: { message: err.errMsg || 'Network Error' } })
+                }
+            })
+        })
+    }
+}
+
+const auth = {
+    async signUp({ email, password, options }) {
+        const url = `${supabaseUrl}/auth/v1/signup`
+        const body = {
+            email,
+            password,
+            data: options?.data || {}
+        }
+        
+        return new Promise(resolve => {
+            uni.request({
+                url,
+                method: 'POST',
+                header: {
+                    'apikey': supabaseKey,
+                    'Content-Type': 'application/json'
+                },
+                data: body,
+                success: (res) => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        resolve({ data: res.data, error: null })
+                    } else {
+                         resolve({ data: null, error: { message: res.data?.msg || res.data?.message || 'Register failed' } })
+                    }
+                },
+                fail: (err) => resolve({ data: null, error: { message: err.errMsg } })
+            })
+        })
+    },
+
+    async signInWithPassword({ email, password }) {
+        const url = `${supabaseUrl}/auth/v1/token?grant_type=password`
+        return new Promise(resolve => {
+            uni.request({
+                url,
+                method: 'POST',
+                header: {
+                    'apikey': supabaseKey,
+                    'Content-Type': 'application/json'
+                },
+                data: { email, password },
+                success: (res) => {
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        // Save Session
+                        uni.setStorageSync(SESSION_KEY, res.data)
+                        resolve({ data: { session: res.data, user: res.data.user }, error: null })
+                    } else {
+                        resolve({ data: null, error: { message: res.data?.error_description || 'Login failed' } })
+                    }
+                },
+                fail: (err) => resolve({ data: null, error: { message: err.errMsg } })
+            })
+        })
+    },
+
+    async signOut() {
+        const session = uni.getStorageSync(SESSION_KEY)
+        if (session) {
+             const url = `${supabaseUrl}/auth/v1/logout`
+             uni.request({
+                 url,
+                 method: 'POST',
+                 header: {
+                     'apikey': supabaseKey,
+                     'Authorization': `Bearer ${session.access_token}`
+                 }
+             })
+        }
+        uni.removeStorageSync(SESSION_KEY)
+        return { error: null }
+    },
+
+    async getSession() {
+        const session = uni.getStorageSync(SESSION_KEY)
+        // Optional: Check expiry and refresh token if needed (simplified here)
+        if (session) {
+            return { data: { session }, error: null }
+        }
+        return { data: { session: null }, error: null }
+    },
+    
+    async getUser() {
+         const session = uni.getStorageSync(SESSION_KEY)
+         if (session && session.user) {
+             return { data: { user: session.user }, error: null }
+         }
+         // If session exists but no user object (rare in new auth), fetch it
+         if (session && session.access_token) {
+             return new Promise(resolve => {
+                 uni.request({
+                     url: `${supabaseUrl}/auth/v1/user`,
+                     method: 'GET',
+                     header: {
+                        'apikey': supabaseKey,
+                         'Authorization': `Bearer ${session.access_token}`
+                     },
+                     success: (res) => {
+                         if (res.statusCode >= 200 && res.statusCode < 300) {
+                             resolve({ data: { user: res.data }, error: null })
+                         } else {
+                             resolve({ data: { user: null }, error: { message: 'Fetch user failed' } })
+                         }
+                     },
+                     fail: () => resolve({ data: { user: null }, error: { message: 'Network error' } })
+                 })
+             })
+         }
+         return { data: { user: null }, error: null }
+    }
+}
+
+export const supabase = {
+    auth,
+    from(table) {
+        return new QueryBuilder(`${supabaseUrl}/rest/v1/${table}`)
+    }
+}

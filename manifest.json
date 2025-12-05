@@ -1,9 +1,9 @@
 {
-    "name" : "MockExamApp",
+    "name" : "爱答题",
     "appid" : "__UNI__C5549BE",
-    "description" : "A simple mock exam application",
-    "versionName" : "1.0.0",
-    "versionCode" : "100",
+    "description" : "一个模拟测试的程序，可以选择组织加入，使用该组织的题库。",
+    "versionName" : "1.0.1",
+    "versionCode" : 101,
     "transformPx" : false,
     "app-plus" : {
         "distribute" : {
@@ -11,5 +11,8 @@
                 "dSYMs" : false
             }
         }
+    },
+    "mp-weixin" : {
+        "appid" : "wx86229e081f2e0f6f"
     }
 }
